@@ -24,4 +24,4 @@ Dự án "CLASSGUARD" là một hệ thống giám sát môi trường lớp h�
 4. Truy cập: `http://localhost:5000`
 
 ## Tác Giả
-[Họ tên của bạn] - Học sinh THCS
+Nguyễn Minh Quân - tHCS Đông Hồ
