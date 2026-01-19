@@ -14,10 +14,18 @@ from reportlab.lib.units import inch, cm
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import matplotlib
-matplotlib.use('Agg')  # Không hiển thị GUI
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+# import matplotlib
+# matplotlib.use('Agg')  # Không hiển thị GUI
+# import matplotlib.pyplot as plt
+# import matplotlib.dates as mdates
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.pdfgen import canvas
+
 import base64
 
 # ========== KHỞI TẠO APP ==========
@@ -319,8 +327,8 @@ def export_pdf():
             elements.append(chart_img)
             elements.append(Spacer(1, 20))
             
-        except Exception as e:
-            print(f"Lỗi tạo biểu đồ: {e}")
+        #except Exception as e:
+        #    print(f"Lỗi tạo biểu đồ: {e}")
         
         # Bảng dữ liệu mẫu
         elements.append(Paragraph("<b>DỮ LIỆU MẪU (10 bản ghi gần nhất)</b>", styles['Heading2']))
@@ -585,3 +593,4 @@ if __name__ == '__main__':
         db_conn.commit()
     
     app.run(host='0.0.0.0', port=5000, debug=False)
+
