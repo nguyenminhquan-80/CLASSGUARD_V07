@@ -1,26 +1,46 @@
-# app.py - Phiên bản tối giản để TEST
-from flask import Flask, render_template, jsonify
+from flask import Flask, jsonify, render_template
 
+# 1. Tạo app Flask - BẮT BUỘC
 app = Flask(__name__)
-app.secret_key = 'classguard-secret-key-2024' # Thay bằng chuỗi bí mật phức tạp của bạn
+app.secret_key = 'your-secret-key-123'  # Thay bằng key phức tạp của bạn
 
-# Route trang chủ đơn giản
+# 2. Định nghĩa ít nhất 1 route - BẮT BUỘC
 @app.route('/')
 def home():
-    return "<h1>CLASSGUARD Server Đang Hoạt Động!</h1><p>Kết nối thành công tới Render.</p>"
+    """Trang chủ hiển thị thông báo đơn giản"""
+    return jsonify({
+        "status": "success",
+        "message": "🚀 CLASSGUARD V07 Đang Hoạt Động!",
+        "api_endpoints": {
+            "home": "/",
+            "health": "/health",
+            "dashboard": "/dashboard",
+            "api_data": "/api/data"
+        }
+    })
 
-# Route API test trả về dữ liệu mẫu
+@app.route('/health')
+def health_check():
+    """Endpoint cho Render health check"""
+    return jsonify({"status": "healthy"}), 200
+
+@app.route('/dashboard')
+def dashboard():
+    """Trang dashboard cơ bản"""
+    return render_template('index.html')
+
 @app.route('/api/data')
 def api_data():
-    # Dữ liệu giả lập để test biểu đồ
+    """API trả về dữ liệu mẫu cho test"""
     sample_data = {
         "temperature": 28.5,
         "humidity": 65,
         "air_quality": 120,
         "light": 450,
-        "sound": 55
+        "sound": 55,
+        "timestamp": "2024-01-19 10:30:00"
     }
     return jsonify(sample_data)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# 3. KHÔNG cần if __name__ == '__main__' khi chạy trên Render
+# Render sẽ dùng gunicorn để chạy app
