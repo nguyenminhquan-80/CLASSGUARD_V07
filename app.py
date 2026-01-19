@@ -7,26 +7,12 @@ import csv
 import io
 import os
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-# import matplotlib
-# matplotlib.use('Agg')  # Không hiển thị GUI
-# import matplotlib.pyplot as plt
-# import matplotlib.dates as mdates
-
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-
-import base64
+import random
 
 # ========== KHỞI TẠO APP ==========
 app = Flask(__name__)
@@ -122,7 +108,6 @@ def logout():
     flash('👋 Đã đăng xuất thành công', 'info')
     return redirect(url_for('login'))
 
-# ========== DASHBOARD CHÍNH ==========
 @app.route('/')
 @app.route('/dashboard')
 @login_required
@@ -163,6 +148,7 @@ def get_current_data():
             'status': 'real'
         })
     else:
+        # Dữ liệu mẫu
         return jsonify({
             'temperature': 26.5,
             'humidity': 65.2,
@@ -202,6 +188,7 @@ def get_historical_data():
         light = [int(row[4]) for row in data]
         sound = [round(row[5], 1) for row in data]
     else:
+        # Dữ liệu mẫu
         timestamps = ['08:00', '10:00', '12:00', '14:00', '16:00']
         temperatures = [26.0, 26.5, 27.0, 26.8, 26.3]
         humidities = [60, 62, 65, 63, 61]
@@ -218,13 +205,13 @@ def get_historical_data():
         'sound': sound
     })
 
-# ========== XUẤT PDF CHUYÊN NGHIỆP ==========
+# ========== XUẤT PDF ĐƠN GIẢN (KHÔNG BIỂU ĐỒ) ==========
 @app.route('/export/pdf')
 @login_required
 def export_pdf():
-    """Xuất báo cáo PDF chuyên nghiệp"""
+    """Xuất báo cáo PDF đơn giản không cần matplotlib"""
     try:
-        # Lấy dữ liệu 24h gần nhất
+        # Lấy dữ liệu
         cursor = db_conn.cursor()
         cursor.execute('''
             SELECT timestamp, temperature, humidity, air_quality, light, sound
@@ -246,106 +233,37 @@ def export_pdf():
         elements = []
         styles = getSampleStyleSheet()
         
-        # Tiêu đề chính
+        # Tiêu đề
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
             fontSize=24,
             textColor=colors.HexColor('#2c3e50'),
-            alignment=1,  # Center
+            alignment=1,
             spaceAfter=20
         )
-        elements.append(Paragraph("BÁO CÁO GIÁM SÁT MÔI TRƯỜNG LỚP HỌC", title_style))
-        elements.append(Paragraph("Hệ thống CLASSGUARD", styles['Heading3']))
+        elements.append(Paragraph("BÁO CÁO GIÁM SÁT LỚP HỌC", title_style))
+        elements.append(Paragraph("Hệ thống CLASSGUARD - Báo cáo tự động", styles['Heading3']))
         elements.append(Spacer(1, 20))
         
-        # Thông tin báo cáo
-        info_style = ParagraphStyle(
-            'InfoStyle',
-            parent=styles['Normal'],
-            fontSize=10,
-            textColor=colors.gray
-        )
-        
+        # Thông tin
         info_text = f"""
         <b>Thời gian báo cáo:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}<br/>
         <b>Số lượng mẫu:</b> {len(data)} điểm dữ liệu<br/>
         <b>Người xuất báo cáo:</b> {current_user.username}<br/>
-        <b>Vai trò:</b> {current_user.role}
+        <b>Vai trò:</b> {current_user.role}<br/>
+        <b>Chu kỳ giám sát:</b> 24 giờ gần nhất
         """
-        elements.append(Paragraph(info_text, info_style))
+        elements.append(Paragraph(info_text, styles['Normal']))
         elements.append(Spacer(1, 30))
         
-        # Tạo biểu đồ
-        try:
-            # Chuẩn bị dữ liệu cho biểu đồ
-            timestamps = [datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S') for row in data[:50]]
-            temps = [row[1] for row in data[:50]]
-            hums = [row[2] for row in data[:50]]
-            
-            # Tạo biểu đồ nhiệt độ - độ ẩm
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-            
-            # Biểu đồ nhiệt độ
-            ax1.plot(timestamps, temps, color='#e74c3c', linewidth=2, marker='o', markersize=3)
-            ax1.set_title('Diễn biến Nhiệt độ', fontsize=12, fontweight='bold')
-            ax1.set_ylabel('Nhiệt độ (°C)', fontsize=10)
-            ax1.grid(True, alpha=0.3)
-            ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            ax1.fill_between(timestamps, temps, alpha=0.3, color='#e74c3c')
-            
-            # Biểu đồ độ ẩm
-            ax2.plot(timestamps, hums, color='#3498db', linewidth=2, marker='s', markersize=3)
-            ax2.set_title('Diễn biến Độ ẩm', fontsize=12, fontweight='bold')
-            ax2.set_ylabel('Độ ẩm (%)', fontsize=10)
-            ax2.set_xlabel('Thời gian', fontsize=10)
-            ax2.grid(True, alpha=0.3)
-            ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            ax2.fill_between(timestamps, hums, alpha=0.3, color='#3498db')
-            
-            plt.tight_layout()
-            
-            # Lưu biểu đồ vào buffer
-            chart_buffer = io.BytesIO()
-            plt.savefig(chart_buffer, format='png', dpi=150, bbox_inches='tight')
-            plt.close()
-            chart_buffer.seek(0)
-            
-            # Chuyển sang base64 để nhúng vào PDF
-            chart_data = base64.b64encode(chart_buffer.getvalue()).decode()
-            
-            # Thêm biểu đồ vào PDF
-            elements.append(Paragraph("<b>BIỂU ĐỒ PHÂN TÍCH DỮ LIỆU</b>", styles['Heading2']))
-            elements.append(Spacer(1, 10))
-            
-            # Lưu biểu đồ ra file tạm và nhúng
-            temp_chart_path = '/tmp/chart_temp.png'
-            with open(temp_chart_path, 'wb') as f:
-                f.write(chart_buffer.getvalue())
-            
-            chart_img = Image(temp_chart_path, width=15*cm, height=10*cm)
-            elements.append(chart_img)
-            elements.append(Spacer(1, 20))
-            
-        #except Exception as e:
-        #    print(f"Lỗi tạo biểu đồ: {e}")
-        
-        # Bảng dữ liệu mẫu
-        elements.append(Paragraph("<b>DỮ LIỆU MẪU (10 bản ghi gần nhất)</b>", styles['Heading2']))
+        # Bảng dữ liệu
+        elements.append(Paragraph("<b>DỮ LIỆU CHI TIẾT</b>", styles['Heading2']))
         elements.append(Spacer(1, 10))
         
-        # Lấy 10 bản ghi gần nhất
-        cursor.execute('''
-            SELECT timestamp, temperature, humidity, air_quality, light, sound
-            FROM sensor_data 
-            ORDER BY timestamp DESC LIMIT 10
-        ''')
-        sample_data = cursor.fetchall()
+        table_data = [['Thời gian', 'Nhiệt độ (°C)', 'Độ ẩm (%)', 'Chất lượng KK', 'Ánh sáng', 'Âm thanh (dB)']]
         
-        # Tạo bảng
-        table_data = [['Thời gian', 'Nhiệt độ (°C)', 'Độ ẩm (%)', 'Chất lượng KK', 'Ánh sáng (lux)', 'Âm thanh (dB)']]
-        
-        for row in sample_data:
+        for row in data[:20]:  # Chỉ lấy 20 bản ghi đầu
             table_data.append([
                 datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S').strftime('%H:%M'),
                 f"{row[1]:.1f}",
@@ -355,7 +273,7 @@ def export_pdf():
                 f"{row[5]:.1f}"
             ])
         
-        table = Table(table_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 3*cm, 2.5*cm, 2.5*cm])
+        table = Table(table_data, colWidths=[3*cm, 2.5*cm, 2.5*cm, 3*cm, 2.5*cm, 3*cm])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -367,50 +285,77 @@ def export_pdf():
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6'))
         ]))
         
         elements.append(table)
         elements.append(Spacer(1, 30))
         
-        # Tóm tắt thống kê
+        # Thống kê
         elements.append(Paragraph("<b>THỐNG KÊ TỔNG QUAN</b>", styles['Heading2']))
         
         cursor.execute('''
             SELECT 
                 AVG(temperature), MIN(temperature), MAX(temperature),
                 AVG(humidity), MIN(humidity), MAX(humidity),
-                AVG(air_quality), MIN(air_quality), MAX(air_quality)
+                AVG(air_quality), MIN(air_quality), MAX(air_quality),
+                AVG(light), MIN(light), MAX(light),
+                AVG(sound), MIN(sound), MAX(sound)
             FROM sensor_data 
             WHERE timestamp > datetime('now', '-24 hours')
         ''')
         stats = cursor.fetchone()
         
-        stats_text = f"""
-        <b>Nhiệt độ:</b> Trung bình {stats[0]:.1f}°C (Min: {stats[1]:.1f}°C, Max: {stats[2]:.1f}°C)<br/>
-        <b>Độ ẩm:</b> Trung bình {stats[3]:.1f}% (Min: {stats[4]:.1f}%, Max: {stats[5]:.1f}%)<br/>
-        <b>Chất lượng không khí:</b> Trung bình {int(stats[6])} ppm (Min: {int(stats[7])}, Max: {int(stats[8])})<br/>
-        <b>Đánh giá tổng thể:</b> {get_overall_evaluation(stats)}
-        """
+        if stats[0] is not None:
+            stats_text = f"""
+            <b>Nhiệt độ:</b> Trung bình {stats[0]:.1f}°C (Min: {stats[1]:.1f}°C, Max: {stats[2]:.1f}°C)<br/>
+            <b>Độ ẩm:</b> Trung bình {stats[3]:.1f}% (Min: {stats[4]:.1f}%, Max: {stats[5]:.1f}%)<br/>
+            <b>Chất lượng không khí:</b> Trung bình {int(stats[6])} ppm (Min: {int(stats[7])}, Max: {int(stats[8])})<br/>
+            <b>Ánh sáng:</b> Trung bình {int(stats[9])} lux (Min: {int(stats[10])}, Max: {int(stats[11])})<br/>
+            <b>Âm thanh:</b> Trung bình {stats[12]:.1f} dB (Min: {stats[13]:.1f} dB, Max: {stats[14]:.1f} dB)<br/>
+            <br/>
+            <b>ĐÁNH GIÁ TỔNG THỂ:</b> {get_overall_evaluation(stats)}
+            """
+        else:
+            stats_text = "Chưa có đủ dữ liệu để thống kê"
         
         elements.append(Paragraph(stats_text, styles['Normal']))
+        elements.append(Spacer(1, 30))
+        
+        # Kết luận
+        elements.append(Paragraph("<b>KẾT LUẬN VÀ ĐỀ XUẤT</b>", styles['Heading2']))
+        
+        conclusion = """
+        1. Hệ thống CLASSGUARD đang hoạt động ổn định<br/>
+        2. Dữ liệu được thu thập và phân tích tự động<br/>
+        3. Các thông số môi trường được giám sát liên tục<br/>
+        4. Đề xuất: Duy trì vệ sinh lớp học và thông gió thường xuyên<br/>
+        5. Khuyến nghị: Kiểm tra định kỳ các thiết bị cảm biến
+        """
+        elements.append(Paragraph(conclusion, styles['Normal']))
         elements.append(Spacer(1, 20))
         
         # Chân trang
-        footer_text = """
-        <i>Báo cáo được tạo tự động bởi hệ thống CLASSGUARD.<br/>
-        Đây là dự án Khoa học Kỹ thuật THCS - Hệ thống giám sát môi trường lớp học thông minh.<br/>
-        Mọi thông tin chi tiết xin liên hệ: classguard.project@gmail.com</i>
-        """
-        elements.append(Paragraph(footer_text, info_style))
+        footer = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.gray,
+            alignment=1
+        )
+        elements.append(Paragraph("--- Hết báo cáo ---", footer))
+        elements.append(Spacer(1, 10))
+        elements.append(Paragraph(
+            "Báo cáo được tạo tự động bởi hệ thống CLASSGUARD<br/>"
+            "Dự án Khoa học Kỹ thuật THCS © 2024", 
+            footer
+        ))
         
-        # Xây dựng PDF
+        # Build PDF
         doc.build(elements)
-        
         buffer.seek(0)
         
-        # Trả về file PDF
+        # Trả về file
         response = make_response(buffer.getvalue())
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = \
@@ -423,27 +368,25 @@ def export_pdf():
         return jsonify({'error': str(e)}), 500
 
 def get_overall_evaluation(stats):
-    """Đánh giá tổng thể từ thống kê"""
-    temp_avg, temp_min, temp_max = stats[0], stats[1], stats[2]
-    hum_avg = stats[3]
-    air_avg = stats[6]
+    """Đánh giá tổng thể"""
+    if stats[0] is None:
+        return "Chưa có đủ dữ liệu"
     
     score = 0
-    if 23 <= temp_avg <= 27:
-        score += 1
-    if 40 <= hum_avg <= 70:
-        score += 1
-    if air_avg < 200:
-        score += 1
+    if 23 <= stats[0] <= 27: score += 1
+    if 40 <= stats[3] <= 70: score += 1
+    if stats[6] < 200: score += 1
+    if 300 <= stats[9] <= 500: score += 1
+    if stats[12] < 60: score += 1
     
-    if score == 3:
+    if score == 5:
         return "Xuất sắc - Môi trường học tập lý tưởng"
-    elif score == 2:
-        return "Tốt - Môi trường học tập tốt"
-    elif score == 1:
-        return "Trung bình - Cần cải thiện một số yếu tố"
+    elif score >= 3:
+        return "Tốt - Phù hợp cho học tập"
+    elif score >= 2:
+        return "Trung bình - Cần cải thiện"
     else:
-        return "Cần cải thiện - Môi trường chưa tối ưu"
+        return "Cần quan tâm - Môi trường chưa tối ưu"
 
 # ========== ĐÁNH GIÁ LỚP HỌC ==========
 def evaluate_classroom(data):
@@ -542,18 +485,51 @@ def control_device():
 def get_devices():
     return jsonify(device_status)
 
+# ========== XUẤT CSV ==========
+@app.route('/export/csv')
+@login_required
+def export_csv():
+    """Xuất CSV"""
+    cursor = db_conn.cursor()
+    cursor.execute("SELECT * FROM sensor_data ORDER BY timestamp DESC LIMIT 1000")
+    data = cursor.fetchall()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Thời gian', 'Nhiệt độ (°C)', 'Độ ẩm (%)', 
+                     'Chất lượng KK (ppm)', 'Ánh sáng (lux)', 'Âm thanh (dB)'])
+    
+    for row in data:
+        writer.writerow([
+            row[1],  # timestamp
+            f"{row[2]:.1f}",  # temperature
+            f"{row[3]:.1f}",  # humidity
+            f"{int(row[4])}",  # air_quality
+            f"{int(row[5])}",  # light
+            f"{row[6]:.1f}"   # sound
+        ])
+    
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = \
+        f'attachment; filename=classguard_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    return response
+
 # ========== THÊM DỮ LIỆU MẪU ==========
-@app.route('/api/add-sample-data', methods=['POST'])
+@app.route('/api/add-sample', methods=['POST'])
 @login_required
 def add_sample_data():
-    """API thêm dữ liệu mẫu (cho demo)"""
+    """Thêm dữ liệu mẫu"""
     if current_user.role != 'admin':
         return jsonify({'error': 'Không có quyền'}), 403
     
-    import random
     cursor = db_conn.cursor()
     
+    # Thêm 10 bản ghi mẫu
+    base_time = datetime.now()
     for i in range(10):
+        timestamp = (base_time - timedelta(minutes=i*15)).strftime('%Y-%m-%d %H:%M:%S')
         temp = 25 + random.uniform(-2, 2)
         hum = 60 + random.uniform(-10, 10)
         air = 100 + random.uniform(0, 100)
@@ -561,9 +537,9 @@ def add_sample_data():
         sound = 50 + random.uniform(-10, 20)
         
         cursor.execute('''
-            INSERT INTO sensor_data (temperature, humidity, air_quality, light, sound)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (temp, hum, air, light, sound))
+            INSERT INTO sensor_data (timestamp, temperature, humidity, air_quality, light, sound)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (timestamp, temp, hum, air, light, sound))
     
     db_conn.commit()
     return jsonify({'status': 'success', 'message': 'Đã thêm 10 bản ghi mẫu'})
@@ -573,13 +549,17 @@ def add_sample_data():
 def health():
     return jsonify({'status': 'healthy', 'time': datetime.now().isoformat()})
 
-if __name__ == '__main__':
-    # Thêm dữ liệu mẫu ban đầu
+# ========== TẠO DỮ LIỆU BAN ĐẦU ==========
+def create_initial_data():
+    """Tạo dữ liệu mẫu ban đầu nếu database trống"""
     cursor = db_conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM sensor_data")
-    if cursor.fetchone()[0] < 50:
-        import random
+    count = cursor.fetchone()[0]
+    
+    if count < 50:
+        base_time = datetime.now()
         for i in range(100):
+            timestamp = (base_time - timedelta(minutes=i*15)).strftime('%Y-%m-%d %H:%M:%S')
             temp = 25 + random.uniform(-2, 2)
             hum = 60 + random.uniform(-10, 10)
             air = 100 + random.uniform(0, 100)
@@ -588,9 +568,14 @@ if __name__ == '__main__':
             
             cursor.execute('''
                 INSERT INTO sensor_data (timestamp, temperature, humidity, air_quality, light, sound)
-                VALUES (datetime('now', ?), ?, ?, ?, ?, ?)
-            ''', (f'-{i*15} minutes', temp, hum, air, light, sound))
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (timestamp, temp, hum, air, light, sound))
+        
         db_conn.commit()
-    
-    app.run(host='0.0.0.0', port=5000, debug=False)
+        print(f"Đã tạo {100} bản ghi mẫu")
 
+# Chạy khi khởi động
+create_initial_data()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
