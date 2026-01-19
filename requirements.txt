@@ -3,7 +3,4 @@ Werkzeug==2.3.7
 Flask-Login==0.6.2
 gunicorn==21.2.0
 reportlab==4.0.4
-matplotlib==3.7.1
-Pillow==9.5.0
-numpy==1.24.3
-pandas==1.5.3
+Pillow==10.1.0
