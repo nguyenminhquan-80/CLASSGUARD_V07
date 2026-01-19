@@ -1,7 +1,6 @@
-# Python 3.9.16
 Flask==2.3.3
 Werkzeug==2.3.7
 Flask-Login==0.6.2
 gunicorn==21.2.0
-reportlab==4.0.4
-Pillow==10.1.0
+reportlab==4.0.8  # Phiên bản mới hơn
+Pillow==10.3.0    # Phiên bản mới hơn
