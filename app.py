@@ -8,6 +8,30 @@ import io
 import os
 import random
 
+# Fix for flask-login compatibility with newer Werkzeug
+try:
+    from werkzeug.urls import url_decode
+except ImportError:
+    from werkzeug.datastructures import MultiDict
+    from werkzeug.http import parse_options_header
+    import urllib.parse
+    
+    def url_decode(query_string, charset='utf-8', decode_keys=False, decode_values=False):
+        """Backward compatibility for old flask-login"""
+        if isinstance(query_string, bytes):
+            query_string = query_string.decode(charset)
+        
+        result = {}
+        for item in query_string.split('&'):
+            if not item:
+                continue
+            key, value = item.split('=', 1) if '=' in item else (item, '')
+            key = urllib.parse.unquote(key, charset)
+            value = urllib.parse.unquote(value, charset)
+            result[key] = value
+        
+        return MultiDict(result)
+
 # ========== KHỞI TẠO APP ==========
 app = Flask(__name__)
 app.secret_key = 'classguard-secret-key-' + os.urandom(16).hex()
@@ -426,3 +450,4 @@ create_sample_data()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
+
