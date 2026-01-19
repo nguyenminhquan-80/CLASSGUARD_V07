@@ -1,0 +1,1 @@
+# CLASSGUARD_V07
